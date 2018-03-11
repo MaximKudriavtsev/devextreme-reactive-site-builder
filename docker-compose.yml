@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  builder:
+    build: ./builder/.
+    volumes:
+     - ./site-data:/site-data
+    environment:
+    - USER=${USER}
+    - PASS=${PASS}
+
+  server:
+    image: nginx:alpine
+    ports:
+      - 3000:80
+    volumes:
+      - ./site-data:/usr/share/nginx/html
