@@ -56,7 +56,7 @@ const script = async () => {
         },
       }));
       if(status.state !== 'success') {
-        appendToIndexFile(`<p>${pr.title} [BUILD OUTDATED DUE TO TEST FAIL]</p><br />`);
+        appendToIndexFile(`<span>${pr.title} [BUILD OUTDATED DUE TO TEST FAIL]</span><br />`);
         return;
       }
       let meta = '';
@@ -90,7 +90,7 @@ const script = async () => {
         );
         appendToIndexFile(`<a href="pr${pr.number}/">${pr.title}</a><br />`);
       } catch(e) {
-        appendToIndexFile(`<p>${pr.title} [BUILD FAILED]</p><br />`);
+        appendToIndexFile(`<span>${pr.title} [BUILD FAILED]</span><br />`);
       }
     });
 

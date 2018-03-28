@@ -4,7 +4,7 @@ services:
   builder:
     build: ./builder/.
     volumes:
-     - ./site-data:/site-data
+     - site-data:/site-data
     environment:
     - USER=${USER}
     - PASS=${PASS}
@@ -14,4 +14,7 @@ services:
     ports:
       - 3000:80
     volumes:
-      - ./site-data:/usr/share/nginx/html
+      - site-data:/usr/share/nginx/html
+
+volumes:
+  site-data:
