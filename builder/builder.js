@@ -23,6 +23,15 @@ const appendToIndexFile = (string) => {
 
 const script = async () => {
   while(true) {
+    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
+    const formatterOptions = {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: 'numeric', minute: 'numeric', second: 'numeric',
+      timeZone: "Europe/Moscow",
+    };
+    appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/><br/>`);
+
+    appendToIndexFile(`<b>PRs:</b><br/>`);
     console.log('Check for pr updates...');
     const prs = JSON.parse(await request(`https://api.github.com/repos/${REPO}/pulls`, {
         auth: {
@@ -44,21 +53,7 @@ const script = async () => {
     });
 
     console.log(`Generating sites...`);
-    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
     prs.forEach(async pr => {
-      const status = JSON.parse(await request(`${pr.base.repo.commits_url.replace('{/sha}', `/${pr.head.sha}`)}/status`, {
-        auth: {
-          user: process.env.USER,
-          pass: process.env.PASS,
-        },
-        headers: {
-          'User-Agent': 'request',
-        },
-      }));
-      if(status.state !== 'success') {
-        appendToIndexFile(`<span>${pr.title} [BUILD OUTDATED DUE TO TEST FAIL]</span><br />`);
-        return;
-      }
       let meta = '';
       try {
         meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, `pr${pr.number}`, META_FILE), 'utf-8'));

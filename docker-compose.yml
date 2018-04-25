@@ -4,10 +4,11 @@ services:
   builder:
     build: ./builder/.
     volumes:
-     - site-data:/site-data
+      - site-data:/site-data
     environment:
-    - USER=${USER}
-    - PASS=${PASS}
+      - USER=${USER}
+      - PASS=${PASS}
+    restart: always
 
   server:
     image: nginx:alpine
