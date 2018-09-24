@@ -1,6 +1,6 @@
 const request = require('request-promise-native');
 const { join } = require('path');
-const { removeSync, readdirSync, readFileSync, writeFileSync } = require('fs-extra');
+const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync } = require('fs-extra');
 const { execSync } = require('child_process');
 
 const REPO = 'devexpress/DevExtreme-Reactive';
@@ -35,15 +35,22 @@ const buildSite = async (repository, sha, name, title) => {
     execSync(`git clone https://github.com/${repository}.git ${REPO_FOLDER}`, { stdio: 'ignore' });
     execSync(`git checkout ${sha}`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
     
-    removeSync(join(BUILT_SITE_FOLDER, name));
     execSync(`yarn --no-progress`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
-    execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
-    execSync('bundle install', { cwd: join(__dirname, SITE_FOLDER) });
-    writeFileSync(join(__dirname, SITE_FOLDER, GENERATED_CONFIG_FILE), `baseurl: "/${name}"`);
-    execSync(
-      `bundle exec jekyll build --config _config.yml,${GENERATED_CONFIG_FILE} --source ${join(__dirname, SITE_FOLDER)} --destination ${join(BUILT_SITE_FOLDER, name)}`,
-      { cwd: join(__dirname, SITE_FOLDER), stdio: 'ignore' },
-    );
+    removeSync(join(BUILT_SITE_FOLDER, name));
+    if (existsSync(join(REPO_FOLDER, 'packages/dx-site'))) {
+      const config = String(readFileSync(join(REPO_FOLDER, 'packages/dx-site/gatsby-config.js')));
+      writeFileSync(join(REPO_FOLDER, 'packages/dx-site/gatsby-config.js'), config.replace('pathPrefix: \'/devextreme-reactive\'', `pathPrefix: \'/${name}\'`));
+      execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
+      copySync(join(REPO_FOLDER, 'packages/dx-site/public'), join(BUILT_SITE_FOLDER, name));
+    } else {
+      execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
+      execSync('bundle install', { cwd: join(__dirname, SITE_FOLDER) });
+      writeFileSync(join(__dirname, SITE_FOLDER, GENERATED_CONFIG_FILE), `baseurl: "/${name}"`);
+      execSync(
+        `bundle exec jekyll build --config _config.yml,${GENERATED_CONFIG_FILE} --source ${join(__dirname, SITE_FOLDER)} --destination ${join(BUILT_SITE_FOLDER, name)}`,
+        { cwd: join(__dirname, SITE_FOLDER), stdio: 'ignore' },
+      );
+    }
     writeFileSync(
       join(BUILT_SITE_FOLDER, name, META_FILE),
       JSON.stringify(sha),
@@ -56,61 +63,65 @@ const buildSite = async (repository, sha, name, title) => {
 };
 
 const script = async () => {
-  while(true) {
-    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
-    const formatterOptions = {
-      year: 'numeric', month: 'numeric', day: 'numeric',
-      hour: 'numeric', minute: 'numeric', second: 'numeric',
-      timeZone: "Europe/Moscow",
-    };
-    appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
+  try {
+    while(true) {
+      writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
+      const formatterOptions = {
+        year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', second: 'numeric',
+        timeZone: "Europe/Moscow",
+      };
+      appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
 
-    const branches = JSON.parse(await request(`https://api.github.com/repos/${REPO}/branches`, {
-        auth: {
-          user: process.env.USER,
-          pass: process.env.PASS,
-        },
-        headers: {
-          'User-Agent': 'request',
-        },
-      }))
-      .filter(branch => branch.name !== 'gh-pages');
+      const branches = JSON.parse(await request(`https://api.github.com/repos/${REPO}/branches`, {
+          auth: {
+            user: process.env.USER,
+            pass: process.env.PASS,
+          },
+          headers: {
+            'User-Agent': 'request',
+          },
+        }))
+        .filter(branch => branch.name !== 'gh-pages');
 
-    const prs = JSON.parse(await request(`https://api.github.com/repos/${REPO}/pulls`, {
-        auth: {
-          user: process.env.USER,
-          pass: process.env.PASS,
-        },
-        headers: {
-          'User-Agent': 'request',
-        },
-      }));
+      const prs = JSON.parse(await request(`https://api.github.com/repos/${REPO}/pulls`, {
+          auth: {
+            user: process.env.USER,
+            pass: process.env.PASS,
+          },
+          headers: {
+            'User-Agent': 'request',
+          },
+        }));
 
-    readdirSync(BUILT_SITE_FOLDER).forEach(filename => {
-      if (filename.startsWith('pr')) {
-        const prNumber = JSON.parse(filename.replace('pr', ''));
-        if (prs.findIndex(pr => pr.number === prNumber) === -1) {
-          removeSync(join(BUILT_SITE_FOLDER, filename))
+      readdirSync(BUILT_SITE_FOLDER).forEach(filename => {
+        if (filename.startsWith('pr')) {
+          const prNumber = JSON.parse(filename.replace('pr', ''));
+          if (prs.findIndex(pr => pr.number === prNumber) === -1) {
+            removeSync(join(BUILT_SITE_FOLDER, filename))
+          }
         }
-      }
-      if (filename.startsWith('branch')) {
-        const branchName = filename.replace('branch', '');
-        if (branches.findIndex(branch => branch.name === branchName) === -1) {
-          removeSync(join(BUILT_SITE_FOLDER, filename))
+        if (filename.startsWith('branch')) {
+          const branchName = filename.replace('branch', '');
+          if (branches.findIndex(branch => branch.name === branchName) === -1) {
+            removeSync(join(BUILT_SITE_FOLDER, filename))
+          }
         }
-      }
-    });
+      });
 
-    appendToIndexFile(`<br/><b>Branches:</b><br/>`);
-    branches.forEach(async branch => {
-      await buildSite(REPO, branch.commit.sha, `branch${branch.name}`, branch.name);
-    });
-    appendToIndexFile(`<br/><b>PRs:</b><br/>`);
-    prs.forEach(async pr => {
-      await buildSite(pr.head.repo.full_name, pr.head.sha, `pr${pr.number}`, pr.title);
-    });
+      appendToIndexFile(`<br/><b>Branches:</b><br/>`);
+      branches.forEach(async branch => {
+        await buildSite(REPO, branch.commit.sha, `branch${branch.name}`, branch.name);
+      });
+      appendToIndexFile(`<br/><b>PRs:</b><br/>`);
+      prs.forEach(async pr => {
+        await buildSite(pr.head.repo.full_name, pr.head.sha, `pr${pr.number}`, pr.title);
+      });
 
-    await sleep(3 * 60 * 1000);
+      await sleep(3 * 60 * 1000);
+    }
+  } catch (e) {
+    process.exit(-1);
   }
 };
 
