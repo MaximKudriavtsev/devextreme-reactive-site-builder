@@ -2,14 +2,27 @@ const request = require('request-promise-native');
 const { join } = require('path');
 const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync } = require('fs-extra');
 const { execSync } = require('child_process');
+const Octokit = require("@octokit/rest");
+const octokit = new Octokit({
+  auth: '3e17e67dbbd75240ad9f20f6cb16738c689e5fab',
+  userAgent: 'maximkudriavtsev',
+});
 
-const REPO = 'devexpress/DevExtreme-Reactive';
+const REPO_WITH_OWNER = 'devexpress/devextreme-reactive';
+const OWNER = 'devexpress';
+const REPO = 'devextreme-reactive';
+const REACT_GRID = 'react/grid/';
 const REPO_FOLDER = 'repo';
 const SITE_FOLDER = 'repo/site';
 const BUILT_SITE_FOLDER = '/site-data';
 const GENERATED_CONFIG_FILE = '_config.g.yml';
 const META_FILE = 'meta.json';
 const INDEX_FILE = 'index.html';
+const formatterOptions = {
+  year: 'numeric', month: 'numeric', day: 'numeric',
+  hour: 'numeric', minute: 'numeric', second: 'numeric',
+  timeZone: "Europe/Moscow",
+};
 
 const sleep = (time) => new Promise(resolve => setTimeout(resolve, time));
 const appendToIndexFile = (string) => {
@@ -26,7 +39,7 @@ const buildSite = async (repository, sha, name, title) => {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
   if (meta === sha) {
-    appendToIndexFile(`<a href="${name}/">${title}</a><br />`);
+    appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
     return;
   }
 
@@ -56,7 +69,7 @@ const buildSite = async (repository, sha, name, title) => {
       JSON.stringify(sha),
       'utf-8',
     );
-    appendToIndexFile(`<a href="${name}/">${title}</a><br />`);
+    appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
   } catch(e) {
     appendToIndexFile(`<span>${title} [BUILD FAILED]</span><br />`);
   }
@@ -66,33 +79,17 @@ const script = async () => {
   try {
     while(true) {
       writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
-      const formatterOptions = {
-        year: 'numeric', month: 'numeric', day: 'numeric',
-        hour: 'numeric', minute: 'numeric', second: 'numeric',
-        timeZone: "Europe/Moscow",
-      };
       appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
 
-      const branches = JSON.parse(await request(`https://api.github.com/repos/${REPO}/branches`, {
-          auth: {
-            user: process.env.USER,
-            pass: process.env.PASS,
-          },
-          headers: {
-            'User-Agent': 'request',
-          },
-        }))
-        .filter(branch => branch.name !== 'gh-pages');
+      const branches = (await octokit.repos.listBranches({
+        owner: OWNER,
+        repo: REPO,
+      })).data.filter(branch => branch.name === 'master');
 
-      const prs = JSON.parse(await request(`https://api.github.com/repos/${REPO}/pulls`, {
-          auth: {
-            user: process.env.USER,
-            pass: process.env.PASS,
-          },
-          headers: {
-            'User-Agent': 'request',
-          },
-        }));
+      const prs = (await octokit.pulls.list({
+        owner: OWNER,
+        repo: REPO,
+      })).data;
 
       readdirSync(BUILT_SITE_FOLDER).forEach(filename => {
         if (filename.startsWith('pr')) {
@@ -111,7 +108,7 @@ const script = async () => {
 
       appendToIndexFile(`<br/><b>Branches:</b><br/>`);
       branches.forEach(async branch => {
-        await buildSite(REPO, branch.commit.sha, `branch${branch.name}`, branch.name);
+        await buildSite(REPO_WITH_OWNER, branch.commit.sha, `branch${branch.name}`, branch.name);
       });
       appendToIndexFile(`<br/><b>PRs:</b><br/>`);
       prs.forEach(async pr => {

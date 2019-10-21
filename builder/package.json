@@ -11,6 +11,7 @@
   "dependencies": {
     "fs-extra": "^5.0.0",
     "request": "^2.83.0",
-    "request-promise-native": "^1.0.5"
+    "request-promise-native": "^1.0.5",
+    "@octokit/rest": "^16.33.1"
   }
 }
