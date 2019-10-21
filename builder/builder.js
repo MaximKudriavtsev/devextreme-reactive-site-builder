@@ -1,11 +1,10 @@
-const request = require('request-promise-native');
 const { join } = require('path');
 const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync } = require('fs-extra');
 const { execSync } = require('child_process');
 const Octokit = require("@octokit/rest");
 const octokit = new Octokit({
-  auth: '3e17e67dbbd75240ad9f20f6cb16738c689e5fab',
-  userAgent: 'maximkudriavtsev',
+  auth: process.env.GITHUB_TOKEN,
+  userAgent: process.env.USER,
 });
 
 const REPO_WITH_OWNER = 'devexpress/devextreme-reactive';
@@ -33,17 +32,43 @@ const appendToIndexFile = (string) => {
     'utf-8',
   );
 };
+
+const changeFileContent = (string, findString) => {
+  const contentLines = String(readFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE))).split('\n');
+  let isExists = false;
+
+  const source = contentLines.reduce((acc, line) => {
+    if (line.indexOf(findString) > -1) {
+      isExists = true;
+      return [...acc, string];
+    } else {
+      return [...acc, line];
+    }
+  }, []);
+  const nextSource = (isExists ? source : [...source, string]).join('\n');
+  console.log(nextSource);
+  
+  writeFileSync(
+    join(BUILT_SITE_FOLDER, INDEX_FILE),
+    nextSource,
+    'utf-8',
+  );
+};
+
 const buildSite = async (repository, sha, name, title) => {
   let meta = '';
   try {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
   if (meta === sha) {
-    appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
+    // appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
+    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
     return;
   }
 
   try {
+    changeFileContent(`<span id="${name}" >${title} [BUILDING...]</span><br />`, `id="${name}"`);
+
     removeSync(join(__dirname, REPO_FOLDER));
     execSync(`git clone https://github.com/${repository}.git ${REPO_FOLDER}`, { stdio: 'ignore' });
     execSync(`git checkout ${sha}`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
@@ -69,17 +94,20 @@ const buildSite = async (repository, sha, name, title) => {
       JSON.stringify(sha),
       'utf-8',
     );
-    appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
+    // appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
+    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
   } catch(e) {
-    appendToIndexFile(`<span>${title} [BUILD FAILED]</span><br />`);
+    changeFileContent(`<span id="${name}" >${title} [BUILD FAILED]</span><br />`, `id="${name}"`);
+    // appendToIndexFile(`<span>${title} [BUILD FAILED]</span><br />`);
   }
 };
 
 const script = async () => {
   try {
+    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
     while(true) {
-      writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
-      appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
+      // appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
+      changeFileContent(`<b>Build loop time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`, '<b>Build loop time:');
 
       const branches = (await octokit.repos.listBranches({
         owner: OWNER,
@@ -106,11 +134,11 @@ const script = async () => {
         }
       });
 
-      appendToIndexFile(`<br/><b>Branches:</b><br/>`);
+      changeFileContent(`<br/><b>Branches:</b><br/>`, `<br/><b>Branches:</b><br/>`);
       branches.forEach(async branch => {
         await buildSite(REPO_WITH_OWNER, branch.commit.sha, `branch${branch.name}`, branch.name);
       });
-      appendToIndexFile(`<br/><b>PRs:</b><br/>`);
+      changeFileContent(`<br/><b>PRs:</b><br/>`, `<br/><b>PRs:</b><br/>`);
       prs.forEach(async pr => {
         await buildSite(pr.head.repo.full_name, pr.head.sha, `pr${pr.number}`, pr.title);
       });
@@ -118,6 +146,7 @@ const script = async () => {
       await sleep(3 * 60 * 1000);
     }
   } catch (e) {
+    console.log(e);
     process.exit(-1);
   }
 };
