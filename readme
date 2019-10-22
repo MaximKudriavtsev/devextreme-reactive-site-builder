@@ -1,3 +1,0 @@
-feel .env with password and login for github like so USER=username PASS=password
-build project  -   docker-compose build
-run project    -   docker-compose up
