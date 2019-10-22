@@ -24,15 +24,6 @@ const formatterOptions = {
 };
 
 const sleep = (time) => new Promise(resolve => setTimeout(resolve, time));
-const appendToIndexFile = (string) => {
-  const content = String(readFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE)));
-  writeFileSync(
-    join(BUILT_SITE_FOLDER, INDEX_FILE),
-    `${content}\n${string}`,
-    'utf-8',
-  );
-};
-
 const changeFileContent = (string, findString) => {
   const contentLines = String(readFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE))).split('\n');
   let isExists = false;
@@ -46,7 +37,6 @@ const changeFileContent = (string, findString) => {
     }
   }, []);
   const nextSource = (isExists ? source : [...source, string]).join('\n');
-  console.log(nextSource);
   
   writeFileSync(
     join(BUILT_SITE_FOLDER, INDEX_FILE),
@@ -61,7 +51,6 @@ const buildSite = async (repository, sha, name, title) => {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
   if (meta === sha) {
-    // appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
     changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
     return;
   }
@@ -94,11 +83,9 @@ const buildSite = async (repository, sha, name, title) => {
       JSON.stringify(sha),
       'utf-8',
     );
-    // appendToIndexFile(`<a href="${name}/${REACT_GRID}">${title}</a><br />`);
     changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
   } catch(e) {
     changeFileContent(`<span id="${name}" >${title} [BUILD FAILED]</span><br />`, `id="${name}"`);
-    // appendToIndexFile(`<span>${title} [BUILD FAILED]</span><br />`);
   }
 };
 
@@ -106,7 +93,6 @@ const script = async () => {
   try {
     writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
     while(true) {
-      // appendToIndexFile(`<b>Build time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`);
       changeFileContent(`<b>Build loop time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`, '<b>Build loop time:');
 
       const branches = (await octokit.repos.listBranches({
@@ -147,6 +133,9 @@ const script = async () => {
     }
   } catch (e) {
     console.log(e);
+    changeFileContent(`
+      <span id="error" >${e}</span>
+    `, 'id="error');
     process.exit(-1);
   }
 };
