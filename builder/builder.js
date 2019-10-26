@@ -17,11 +17,43 @@ const BUILT_SITE_FOLDER = '/site-data';
 const GENERATED_CONFIG_FILE = '_config.g.yml';
 const META_FILE = 'meta.json';
 const INDEX_FILE = 'index.html';
+const STYLES_FILE = 'styles.css';
 const formatterOptions = {
   year: 'numeric', month: 'numeric', day: 'numeric',
   hour: 'numeric', minute: 'numeric', second: 'numeric',
   timeZone: "Europe/Moscow",
 };
+const prevPRs = [];
+const STYLES = `
+h1 {
+  color: #424242;
+  padding-bottom: 3%;
+}
+body {
+  padding: 2% 20%;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+span {
+  display: block;
+  margin-top: 10px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  border: 1px;
+}
+.done {
+  background-color: #C8E6C9;
+}
+.failure {
+  background-color: #FFCDD2;
+}
+.progress {
+  background-color: #FFECB3;
+}
+`;
 
 const sleep = (time) => new Promise(resolve => setTimeout(resolve, time));
 const changeFileContent = (string, findString) => {
@@ -45,18 +77,30 @@ const changeFileContent = (string, findString) => {
   );
 };
 
+const removeOldPRs = (prs, oldPRs) => {
+  const olds = oldPRs.reduce((acc, oldPr) => {
+    if (!prs.some(pr => pr.name === oldPr.name)) {
+      return [...acc, oldPr];
+    } return acc;
+  }, []);
+
+  olds.forEach(old => {
+    changeFileContent('', `id="${old.name}"`);
+  });
+};
+
 const buildSite = async (repository, sha, name, title) => {
   let meta = '';
   try {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
   if (meta === sha) {
-    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
+    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
     return;
   }
 
   try {
-    changeFileContent(`<span id="${name}" >${title} [BUILDING...]</span><br />`, `id="${name}"`);
+    changeFileContent(`<span id="${name}" class="progress" >${title} [BUILDING...]</span>`, `id="${name}"`);
 
     removeSync(join(__dirname, REPO_FOLDER));
     execSync(`git clone https://github.com/${repository}.git ${REPO_FOLDER}`, { stdio: 'ignore' });
@@ -83,17 +127,18 @@ const buildSite = async (repository, sha, name, title) => {
       JSON.stringify(sha),
       'utf-8',
     );
-    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}">${title}</a><br />`, `id="${name}"`);
+    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
   } catch(e) {
-    changeFileContent(`<span id="${name}" >${title} [BUILD FAILED]</span><br />`, `id="${name}"`);
+    changeFileContent(`<span class="failure" id="${name}" >${title} [BUILD FAILED]</span>`, `id="${name}"`);
   }
 };
 
 const script = async () => {
   try {
-    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '', 'utf-8');
+    writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '<head><link rel="stylesheet" href="./styles.css"></head><h1>DevExtreme Reactive Continuous PRs Deployment</h1>', 'utf-8');
+    writeFileSync(join(BUILT_SITE_FOLDER, STYLES_FILE), `${STYLES}`, 'utf-8');
     while(true) {
-      changeFileContent(`<b>Build loop time: ${new Intl.DateTimeFormat('en-US', formatterOptions).format(new Date())}</b><br/>`, '<b>Build loop time:');
+      changeFileContent(`<b>Build loop time: ${new Intl.DateTimeFormat('ru-RU', formatterOptions).format(new Date())}</b><br/>`, '<b>Build loop time:');
 
       const branches = (await octokit.repos.listBranches({
         owner: OWNER,
@@ -128,6 +173,9 @@ const script = async () => {
       prs.forEach(async pr => {
         await buildSite(pr.head.repo.full_name, pr.head.sha, `pr${pr.number}`, pr.title);
       });
+
+      removeOldPRs(prs, prevPRs);
+      prevPRs = prs;
 
       await sleep(3 * 60 * 1000);
     }
