@@ -174,9 +174,6 @@ const script = async () => {
         await buildSite(pr.head.repo.full_name, pr.head.sha, `pr${pr.number}`, pr.title);
       });
 
-      removeOldPRs(prs, prevPRs);
-      prevPRs = prs;
-
       await sleep(3 * 60 * 1000);
     }
   } catch (e) {
