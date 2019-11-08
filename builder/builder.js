@@ -100,6 +100,12 @@ const buildSite = async (repository, sha, name, title) => {
   }
 
   try {
+    writeFileSync(
+      join(BUILT_SITE_FOLDER, name, META_FILE),
+      JSON.stringify(sha),
+      'utf-8',
+    );
+
     changeFileContent(`<span id="${name}" class="progress" >${title} [BUILDING...]</span>`, `id="${name}"`);
 
     removeSync(join(__dirname, REPO_FOLDER));
@@ -122,11 +128,6 @@ const buildSite = async (repository, sha, name, title) => {
         { cwd: join(__dirname, SITE_FOLDER), stdio: 'ignore' },
       );
     }
-    writeFileSync(
-      join(BUILT_SITE_FOLDER, name, META_FILE),
-      JSON.stringify(sha),
-      'utf-8',
-    );
     changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
   } catch(e) {
     changeFileContent(`<span class="failure" id="${name}" >${title} [BUILD FAILED]</span>`, `id="${name}"`);
