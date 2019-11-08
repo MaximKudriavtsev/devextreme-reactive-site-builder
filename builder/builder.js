@@ -91,7 +91,7 @@ const removeOldPRs = (prs, oldPRs) => {
 
 const buildSite = async (repository, sha, name, title) => {
   let meta = '';
-  console.log(`build: ${repository} with SHA: ${sha}`);
+  console.log(`build: ${repository}/${name} with SHA: ${sha}`);
   try {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
@@ -100,13 +100,13 @@ const buildSite = async (repository, sha, name, title) => {
     return;
   }
 
-  try {
-    writeFileSync(
-      join(BUILT_SITE_FOLDER, name, META_FILE),
-      JSON.stringify(sha),
-      'utf-8',
-    );
+  writeFileSync(
+    join(BUILT_SITE_FOLDER, name, META_FILE),
+    JSON.stringify(sha),
+    'utf-8',
+  );
 
+  try {
     changeFileContent(`<span id="${name}" class="progress" >${title} [BUILDING...]</span>`, `id="${name}"`);
 
     removeSync(join(__dirname, REPO_FOLDER));
