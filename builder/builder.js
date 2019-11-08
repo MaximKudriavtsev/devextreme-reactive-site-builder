@@ -91,6 +91,7 @@ const removeOldPRs = (prs, oldPRs) => {
 
 const buildSite = async (repository, sha, name, title) => {
   let meta = '';
+  console.log(`build: ${repository} with SHA: ${sha}`);
   try {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
