@@ -24,4 +24,13 @@ const changeFileContent = (string, findString) => {
   );
 };
 
-changeFileContent('<a id="pr-XXX" href="pr-XXX"></a>', 'pr-XXX');
+const createFile = () => {
+  writeFileSync(
+    join('./name', 'INDEX_FILE.js'),
+    1233,
+    'utf-8',
+  );
+}
+
+// changeFileContent('<a id="pr-XXX" href="pr-XXX"></a>', 'pr-XXX');
+createFile();

@@ -1,5 +1,5 @@
 const { join } = require('path');
-const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync } = require('fs-extra');
+const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync, mkdirSync } = require('fs-extra');
 const { execSync } = require('child_process');
 const Octokit = require("@octokit/rest");
 const octokit = new Octokit({
@@ -96,15 +96,23 @@ const buildSite = async (repository, sha, name, title) => {
     meta = JSON.parse(readFileSync(join(BUILT_SITE_FOLDER, name, META_FILE), 'utf-8'));
   } catch(e) {}
   if (meta === sha) {
-    changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
+    // changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
     return;
   }
 
-  writeFileSync(
-    join(BUILT_SITE_FOLDER, name, META_FILE),
-    JSON.stringify(sha),
-    'utf-8',
-  );
+  try {
+    const filePath = join(BUILT_SITE_FOLDER, name);
+    if (!existsSync(filePath)) {
+      mkdirSync(filePath);
+    }
+    writeFileSync(
+      join(BUILT_SITE_FOLDER, name, META_FILE),
+      JSON.stringify(sha),
+      'utf-8',
+    );
+  } catch(e) {
+    console.log(e);
+  }
 
   try {
     changeFileContent(`<span id="${name}" class="progress" >${title} [BUILDING...]</span>`, `id="${name}"`);
