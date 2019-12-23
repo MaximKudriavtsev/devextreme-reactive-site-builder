@@ -1,4 +1,5 @@
 const { join } = require('path');
+const fs = require('fs');
 const { removeSync, readdirSync, readFileSync, writeFileSync, existsSync, copySync, mkdirSync } = require('fs-extra');
 const { execSync } = require('child_process');
 const Octokit = require("@octokit/rest");
@@ -144,6 +145,14 @@ const buildSite = async (repository, sha, name, title) => {
 };
 
 const script = async () => {
+  fs.readdir(join(BUILT_SITE_FOLDER), (err, files) => {
+    files.forEach(file => {
+      console.log(file);
+      if (file.slice(0, 2) === 'pr' || file === 'branchmaster') {
+        removeSync(join(BUILT_SITE_FOLDER, file));
+      }
+    });
+  });
   try {
     writeFileSync(join(BUILT_SITE_FOLDER, INDEX_FILE), '<head><link rel="stylesheet" href="./styles.css"></head><h1>DevExtreme Reactive Continuous PRs Deployment</h1>', 'utf-8');
     writeFileSync(join(BUILT_SITE_FOLDER, STYLES_FILE), `${STYLES}`, 'utf-8');
