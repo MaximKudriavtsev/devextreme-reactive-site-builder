@@ -14,7 +14,7 @@ services:
   server:
     image: nginx:alpine
     ports:
-      - 3000:80
+      - 8000:80
     volumes:
       - site-data:/usr/share/nginx/html
 
