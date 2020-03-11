@@ -1,12 +1,9 @@
-FROM node:alpine
+FROM node:12.16.1-alpine3.10
 
 RUN apk update && apk upgrade
 RUN apk add --no-cache bash git openssh
-RUN apk add ruby ruby-irb ruby-rake ruby-io-console ruby-bigdecimal ruby-json ruby-bundler libstdc++ tzdata bash ca-certificates build-base libffi-dev ruby-dev
-RUN echo 'gem: --no-document' > /etc/gemrc
 
-RUN gem install bundler:1.16.4
-RUN npm i yarn -g
+# RUN npm i yarn@1.22.0 -g # The yarn has been added by Docker image - 12.16.1-alpine3.10
 
 COPY package.json yarn.lock ./
 RUN yarn --no-progress

@@ -78,18 +78,6 @@ const changeFileContent = (string, findString) => {
   );
 };
 
-const removeOldPRs = (prs, oldPRs) => {
-  const olds = oldPRs.reduce((acc, oldPr) => {
-    if (!prs.some(pr => pr.name === oldPr.name)) {
-      return [...acc, oldPr];
-    } return acc;
-  }, []);
-
-  olds.forEach(old => {
-    changeFileContent('', `id="${old.name}"`);
-  });
-};
-
 const buildSite = async (repository, sha, name, title) => {
   let meta = '';
   console.log(`build: ${repository}/${name} with SHA: ${sha}`);
@@ -119,24 +107,30 @@ const buildSite = async (repository, sha, name, title) => {
     changeFileContent(`<span id="${name}" class="progress" >${title} [BUILDING...]</span>`, `id="${name}"`);
 
     removeSync(join(__dirname, REPO_FOLDER));
+    console.log('== node ==');
+    execSync('node -v', { stdio: 'inherit' });
+    execSync('yarn -v', { stdio: 'inherit' });
+    console.log('== yarn ==');
     execSync(`git clone https://github.com/${repository}.git ${REPO_FOLDER}`, { stdio: 'ignore' });
     execSync(`git checkout ${sha}`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
     
-    execSync(`yarn --no-progress`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
+    execSync(`yarn --no-progress`, { cwd: join(__dirname, REPO_FOLDER) });
     removeSync(join(BUILT_SITE_FOLDER, name));
     if (existsSync(join(REPO_FOLDER, 'packages/dx-site'))) {
       const config = String(readFileSync(join(REPO_FOLDER, 'packages/dx-site/gatsby-config.js')));
       writeFileSync(join(REPO_FOLDER, 'packages/dx-site/gatsby-config.js'), config.replace('pathPrefix: \'/devextreme-reactive\'', `pathPrefix: \'/${name}\'`));
-      execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
+      execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER) });
       copySync(join(REPO_FOLDER, 'packages/dx-site/public'), join(BUILT_SITE_FOLDER, name));
     } else {
-      execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
-      execSync('bundle install', { cwd: join(__dirname, SITE_FOLDER) });
-      writeFileSync(join(__dirname, SITE_FOLDER, GENERATED_CONFIG_FILE), `baseurl: "/${name}"`);
-      execSync(
-        `bundle exec jekyll build --config _config.yml,${GENERATED_CONFIG_FILE} --source ${join(__dirname, SITE_FOLDER)} --destination ${join(BUILT_SITE_FOLDER, name)}`,
-        { cwd: join(__dirname, SITE_FOLDER), stdio: 'ignore' },
-      );
+      // The old site script
+
+      // execSync(`yarn build:site`, { cwd: join(__dirname, REPO_FOLDER), stdio: 'ignore' });
+      // execSync('bundle install', { cwd: join(__dirname, SITE_FOLDER) });
+      // writeFileSync(join(__dirname, SITE_FOLDER, GENERATED_CONFIG_FILE), `baseurl: "/${name}"`);
+      // execSync(
+      //   `bundle exec jekyll build --config _config.yml,${GENERATED_CONFIG_FILE} --source ${join(__dirname, SITE_FOLDER)} --destination ${join(BUILT_SITE_FOLDER, name)}`,
+      //   { cwd: join(__dirname, SITE_FOLDER), stdio: 'ignore' },
+      // );
     }
     changeFileContent(`<a id="${name}" href="${name}/${REACT_GRID}"><span class="done">${title}</span></a>`, `id="${name}"`);
   } catch(e) {
